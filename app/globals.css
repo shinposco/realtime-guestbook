@@ -1,0 +1,61 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply min-w-0 bg-paper text-ink antialiased;
+    font-family: "National Park", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    background-image: radial-gradient(#c7bd9e38 0.85px, transparent 0.85px);
+    background-size: 18px 18px;
+  }
+  :focus-visible {
+    outline: 2px solid #496457;
+    outline-offset: 3px;
+  }
+  button:disabled { @apply cursor-not-allowed opacity-50; }
+  body:has(dialog[open]) { overflow: hidden; }
+}
+
+@layer components {
+  .wrap { @apply mx-auto w-full max-w-[72rem] px-5 sm:px-8; }
+  .brand-mark { @apply grid size-9 place-items-center rounded-xl bg-moss text-lg text-[#ffefba]; }
+  .nav-link { @apply whitespace-nowrap rounded-full px-3 py-2 text-stone-600 hover:bg-[#f1eee5] sm:px-4; }
+  .nav-link[aria-current="page"] { @apply bg-[#ebeadb] font-bold text-ink; }
+  .display-title { @apply text-[2.45rem] font-black leading-[1.13] tracking-[-0.07em] sm:text-[3.6rem]; }
+  .panel { @apply rounded-[1.6rem] border border-line bg-[#fffdf8] p-4 shadow-[0_8px_24px_#51472c0b] sm:p-6; }
+  .mode-button { @apply whitespace-nowrap rounded-full px-3 py-2 text-xs font-bold text-stone-700 hover:text-ink; }
+  .mode-button[aria-pressed="true"] { @apply bg-white text-ink shadow-sm; }
+  .upload-area { @apply flex min-h-[18rem] flex-col items-center justify-center rounded-[1.3rem] border border-dashed border-[#c9bea4] bg-[#faf7ec] p-4 sm:min-h-[22rem]; }
+  .primary { @apply inline-flex min-h-11 items-center justify-center rounded-xl bg-moss px-5 py-2.5 text-center text-sm font-bold text-white hover:bg-[#344438]; }
+  .secondary { @apply inline-flex min-h-10 items-center justify-center rounded-xl border border-line bg-white px-4 py-2 text-sm font-bold hover:bg-[#f4f0e4]; }
+  .tool { @apply min-h-9 rounded-lg px-2 py-1.5 font-semibold hover:bg-[#f2eee4]; }
+  .tool[aria-pressed="true"] { @apply bg-[#e2eadc]; }
+  .swatch { @apply grid size-8 place-items-center rounded-full border border-transparent; }
+  .swatch[aria-pressed="true"] { @apply border-moss; }
+  .swatch span { @apply size-5 rounded-full; }
+  .canvas-paper {
+    background-color: #fffdfa;
+    background-image: radial-gradient(#a6977854 1px, transparent 1px);
+    background-size: 16px 16px;
+  }
+  .form-label { @apply mb-2 flex items-baseline gap-2 text-sm font-bold; }
+  .form-label span { @apply text-xs font-medium text-stone-600; }
+  .field { @apply block w-full rounded-xl border border-line bg-white px-3 py-2.5 text-base placeholder:text-stone-500; }
+  .note { @apply relative block w-full rounded-[0.55rem] p-4 text-left shadow-[2px_7px_12px_#342b231c] transition-transform motion-safe:hover:-translate-y-1; }
+  .note::before {
+    content: "";
+    position: absolute;
+    top: -10px;
+    left: calc(50% - 24px);
+    width: 48px;
+    height: 19px;
+    rotate: -5deg;
+    background-color: #f7efd4d9;
+  }
+  .note[data-new="true"] { box-shadow: 0 0 0 3px #687b59, 2px 7px 12px #342b2326; }
+  .empty-board { @apply grid min-h-[20rem] place-content-center justify-items-center rounded-[1.6rem] border border-dashed border-[#c9bea4] bg-[#fffcf2] p-6 text-center; }
+  .empty-note { @apply grid size-[4.5rem] -rotate-6 place-items-center rounded-md bg-[#f8eab3] text-2xl text-moss shadow-md; }
+  .detail { @apply fixed mx-auto my-auto max-h-[90dvh] w-[calc(100%-2rem)] max-w-[40rem] overflow-auto rounded-[1.5rem] border border-line bg-paper text-ink shadow-2xl; }
+  .detail::backdrop { background: #22292077; }
+}

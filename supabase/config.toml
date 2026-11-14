@@ -1,0 +1,4 @@
+project_id = "realtime-guestbook"
+
+[functions.moa-write]
+verify_jwt = true
