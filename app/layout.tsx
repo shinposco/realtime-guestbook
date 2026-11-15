@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { AuthProvider } from "../components/auth";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -8,5 +9,5 @@ export const metadata: Metadata = {
 };
 
 export default function Layout({ children }: { children: ReactNode }) {
-  return <html lang="ko"><body>{children}</body></html>;
+  return <html lang="ko"><body><AuthProvider>{children}</AuthProvider></body></html>;
 }

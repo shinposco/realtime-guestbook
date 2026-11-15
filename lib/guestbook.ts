@@ -1,5 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
 import { limits, photoTypes } from "../supabase/functions/moa-write/limits";
+import { supabase, supabasePublicKey, supabaseUrl } from "./supabase";
 
 export { limits, photoTypes };
 export type MediaKind = "photo" | "drawing";
@@ -14,17 +14,6 @@ type EntryRow = {
   created_at: string; comments: { count: number }[];
 };
 type CommentRow = { id: string; entry_id: string; nickname: string; body: string; created_at: string };
-
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-let client: ReturnType<typeof createClient> | undefined;
-
-function supabase() {
-  if (!url || !anonKey) throw new Error("Supabase environment variables are missing");
-  return client ??= createClient(url, anonKey, {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-  });
-}
 
 export async function readBoard(): Promise<Entry[]> {
   const db = supabase();
@@ -56,23 +45,46 @@ export async function readComments(entryId: string): Promise<Comment[]> {
   }
 }
 
-async function write(action: "entry" | "comment", fields: Record<string, string | Blob>) {
+class WriteError extends Error {
+  constructor(readonly status: number) {
+    super(`Save failed (${status})`);
+  }
+}
+
+export function writeErrorMessage(error: unknown, fallback: string) {
+  if (!(error instanceof WriteError)) return fallback;
+  if (error.status === 401) return "로그인 세션이 만료됐거나 계정이 바뀌었어요. 로그인 상태를 확인한 뒤 다시 제출해 주세요.";
+  if (error.status === 403) return "이메일 인증을 마친 계정으로 로그인해 주세요.";
+  if (error.status === 409) return "이미 처리된 요청과 충돌했어요. 보드에서 등록 여부를 확인해 주세요.";
+  if (error.status === 503) return "지금은 로그인 정보를 확인할 수 없어요. 잠시 후 다시 시도해 주세요.";
+  return fallback;
+}
+
+export type PendingWrite = { id: string; authorId: string };
+
+export function pendingWrite(previous: PendingWrite | undefined, authorId: string): PendingWrite {
+  return previous?.authorId === authorId ? previous : { id: crypto.randomUUID(), authorId };
+}
+
+async function write(action: "entry" | "comment", fields: Record<string, string | Blob>, authorId: string) {
+  const { data: { session }, error } = await supabase().auth.getSession();
+  if (error && (!error.status || error.status === 429 || error.status >= 500)) throw new WriteError(503);
+  if (!session || session.user.id !== authorId) throw new WriteError(401);
   const body = new FormData();
   body.set("action", action);
   for (const [name, value] of Object.entries(fields)) body.set(name, value);
-  if (!url || !anonKey) throw new Error("Supabase environment variables are missing");
-  const result = await fetch(`${url}/functions/v1/moa-write`, {
-    method: "POST", headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` }, body,
+  const result = await fetch(`${supabaseUrl}/functions/v1/moa-write`, {
+    method: "POST", headers: { apikey: supabasePublicKey!, Authorization: `Bearer ${session.access_token}` }, body,
   });
-  if (!result.ok) throw new Error(`Save failed (${result.status})`);
+  if (!result.ok) throw new WriteError(result.status);
 }
 
-export function saveEntry(entry: EntryDraft) {
-  return write("entry", entry);
+export function saveEntry(entry: EntryDraft, authorId: string) {
+  return write("entry", entry, authorId);
 }
 
-export function saveComment(comment: CommentDraft) {
-  return write("comment", comment);
+export function saveComment(comment: CommentDraft, authorId: string) {
+  return write("comment", comment, authorId);
 }
 
 function listen(channel: ReturnType<ReturnType<typeof supabase>["channel"]>, onChange: () => void) {

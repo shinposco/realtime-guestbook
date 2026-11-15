@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
+import { AccountControls, useGuestbookAuth } from "./auth";
 import { Artwork } from "./artwork";
 import { Frame } from "./frame";
-import { limits, readBoard, readComments, saveComment, subscribeToBoard, subscribeToComments } from "../lib/guestbook";
-import type { Comment, Entry } from "../lib/guestbook";
+import { limits, pendingWrite, readBoard, readComments, saveComment, subscribeToBoard, subscribeToComments, writeErrorMessage } from "../lib/guestbook";
+import type { Comment, Entry, PendingWrite } from "../lib/guestbook";
 
 const paperColors = ["#f8eab3", "#deebd6", "#f4dce2", "#e6e2f6", "#dcebf0"];
 const dateFormat = new Intl.DateTimeFormat("ko-KR", { dateStyle: "medium", timeStyle: "short" });
@@ -17,7 +18,8 @@ function Details({ entry, dismiss, onSave }: {
   onSave: () => Promise<void>;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
-  const requestId = useRef<string>();
+  const { authorId } = useGuestbookAuth();
+  const requestId = useRef<PendingWrite>();
   const commentRevision = useRef(0);
   const [comments, setComments] = useState<Comment[]>();
   const [readError, setReadError] = useState(false);
@@ -54,6 +56,7 @@ function Details({ entry, dismiss, onSave }: {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (saving || !authorId) return;
     if (!body.trim()) {
       setError("댓글을 입력해 주세요.");
       return;
@@ -61,15 +64,16 @@ function Details({ entry, dismiss, onSave }: {
     setSaving(true);
     setError("");
     try {
+      const { id } = requestId.current = pendingWrite(requestId.current, authorId);
       await saveComment({
-        id: requestId.current ??= crypto.randomUUID(), entryId: entry.id,
+        id, entryId: entry.id,
         nickname: nickname.trim() || "익명", body: body.trim(),
-      });
+      }, authorId);
       requestId.current = undefined;
       setBody("");
       await Promise.all([onSave(), refreshComments()]);
-    } catch {
-      setError("댓글을 저장하지 못했어요. 다시 시도해 주세요.");
+    } catch (error) {
+      setError(writeErrorMessage(error, "댓글을 저장하지 못했어요. 다시 시도해 주세요."));
     } finally {
       setSaving(false);
     }
@@ -107,6 +111,7 @@ function Details({ entry, dismiss, onSave }: {
             </ul>
           )}
           {comments?.length === 0 && <p className="mt-2 text-sm text-stone-600">첫 댓글을 남겨 보세요.</p>}
+          <div className="mt-5"><AccountControls action="댓글을 남기" /></div>
           <form onSubmit={submit} onChange={() => { requestId.current = undefined; }} className="mt-5">
             <fieldset disabled={saving}>
               <label htmlFor="comment-nickname" className="form-label">닉네임 <span>선택</span></label>
@@ -114,7 +119,7 @@ function Details({ entry, dismiss, onSave }: {
               <label htmlFor="comment-body" className="form-label mt-3">댓글 내용</label>
               <textarea id="comment-body" className="field min-h-20 resize-y" required maxLength={limits.comment} value={body} onChange={(event) => setBody(event.target.value)} placeholder="포스트잇에 답장을 남겨 보세요." />
               {error && <p role="alert" className="mt-2 text-sm text-[#9b352a]">{error}</p>}
-              <button type="submit" className="primary mt-3">{saving ? "저장 중…" : "댓글 남기기"}</button>
+              <button type="submit" disabled={!authorId} className="primary mt-3">{saving ? "저장 중…" : "댓글 남기기"}</button>
             </fieldset>
           </form>
         </section>
@@ -170,6 +175,7 @@ export function Board() {
         </div>
         <Link className="primary" href="/">+ 포스트잇 남기기</Link>
       </section>
+      <section aria-label="계정" className="panel mb-6"><AccountControls /></section>
       {error && (
         <div role="alert" className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-white px-5 py-3 text-sm">
           <p>방명록을 불러오지 못했어요.</p>

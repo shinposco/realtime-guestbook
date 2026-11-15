@@ -3,16 +3,18 @@
 import { useCallback, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { AccountControls, useGuestbookAuth } from "./auth";
 import { Artwork } from "./artwork";
 import { Drawing } from "./drawing";
 import { Frame } from "./frame";
-import { limits, photoTypes, saveEntry } from "../lib/guestbook";
-import type { MediaKind } from "../lib/guestbook";
+import { limits, pendingWrite, photoTypes, saveEntry, writeErrorMessage } from "../lib/guestbook";
+import type { MediaKind, PendingWrite } from "../lib/guestbook";
 
 export function Compose() {
   const router = useRouter();
+  const { authorId } = useGuestbookAuth();
   const fileInput = useRef<HTMLInputElement>(null);
-  const requestId = useRef<string>();
+  const requestId = useRef<PendingWrite>();
   const [mode, setMode] = useState<MediaKind>("photo");
   const [photo, setPhoto] = useState<File | null>(null);
   const [drawing, setDrawing] = useState<Promise<Blob | null>>(() => Promise.resolve(null));
@@ -38,7 +40,7 @@ export function Compose() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (saving) return;
+    if (saving || !authorId) return;
     setSaving(true);
     setError("");
     try {
@@ -48,11 +50,11 @@ export function Compose() {
         setSaving(false);
         return;
       }
-      const id = requestId.current ??= crypto.randomUUID();
-      await saveEntry({ id, image, kind: mode, nickname: nickname.trim() || "익명", message: message.trim() });
+      const { id } = requestId.current = pendingWrite(requestId.current, authorId);
+      await saveEntry({ id, image, kind: mode, nickname: nickname.trim() || "익명", message: message.trim() }, authorId);
       router.push(`/board?new=${id}`);
-    } catch {
-      setError("방명록을 저장하지 못했어요. 다시 시도해 주세요.");
+    } catch (error) {
+      setError(writeErrorMessage(error, "방명록을 저장하지 못했어요. 다시 시도해 주세요."));
       setSaving(false);
     }
   }
@@ -62,6 +64,9 @@ export function Compose() {
       <section className="mb-9 sm:mb-11">
         <h1 className="display-title">오늘의 흔적을<br className="sm:hidden" /> 남겨요<span className="text-[#ad5339]">.</span></h1>
         <p className="mt-4 text-sm leading-7 text-stone-600 sm:text-base">사진 한 장이나 손그림으로 지금 이 순간을 기록해 보세요.</p>
+      </section>
+      <section aria-label="계정" className="panel mb-6">
+        <AccountControls action="방명록을 남기" />
       </section>
       <form onSubmit={submit} onChange={() => { requestId.current = undefined; }}>
         <fieldset disabled={saving} className="grid min-w-0 items-start gap-6 lg:grid-cols-[1.55fr_1fr]">
@@ -110,7 +115,7 @@ export function Compose() {
             <textarea id="message" className="field min-h-28 resize-y" maxLength={limits.message} value={message} onChange={(event) => setMessage(event.target.value)} placeholder="사진이나 그림에 담긴 이야기를 들려주세요." />
             <p className="mt-1 text-right text-xs tabular-nums text-stone-600">{message.length}/{limits.message}</p>
             {error && <p role="alert" className="mt-3 text-sm text-[#9b352a]">{error}</p>}
-            <button className="primary mt-5 w-full" type="submit">{saving ? "저장 중…" : "방명록 남기기 →"}</button>
+            <button className="primary mt-5 w-full" disabled={!authorId} type="submit">{saving ? "저장 중…" : "방명록 남기기 →"}</button>
           </section>
         </fieldset>
       </form>

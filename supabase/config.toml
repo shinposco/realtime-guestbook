@@ -1,4 +1,20 @@
 project_id = "realtime-guestbook"
 
+[auth]
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000/auth/confirm", "http://127.0.0.1:3000/auth/confirm"]
+minimum_password_length = 8
+
+[auth.email]
+enable_confirmations = true
+
+[auth.email.template.confirmation]
+subject = "모아 이메일 인증"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.recovery]
+subject = "모아 비밀번호 재설정"
+content_path = "./supabase/templates/recovery.html"
+
 [functions.moa-write]
 verify_jwt = true
